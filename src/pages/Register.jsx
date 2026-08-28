@@ -43,9 +43,9 @@ export default function Register() {
     <div className="flex min-h-screen items-center justify-center bg-cream px-4">
       <div className="w-full max-w-md rounded-2xl border border-sand bg-white p-8 shadow-sm">
         <div className="mb-8 text-center">
-          <p className="font-display text-3xl font-semibold text-ink">Utsav</p>
+          <p className="font-display text-3xl font-semibold text-ink">Ganesh Chaturthi</p>
           <p className="mt-1 text-sm text-ink-muted">
-            Create your admin account
+            Create your admin account for Ganesh Chaturthi 2026
           </p>
         </div>
 

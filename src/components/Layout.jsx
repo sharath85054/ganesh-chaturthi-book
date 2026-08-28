@@ -43,7 +43,7 @@ export default function Layout() {
           <div className="flex h-16 items-center justify-between border-b border-sand px-5">
             <div>
               <p className="font-display text-xl font-semibold tracking-tight text-ink">
-                Utsav
+                Ganesh Chaturthi
               </p>
               <p className="text-[11px] uppercase tracking-[0.15em] text-ink-muted">
                 Festival Manager
@@ -121,7 +121,7 @@ export default function Layout() {
             >
               <Menu size={20} />
             </button>
-            <span className="font-display text-lg font-semibold">Utsav</span>
+            <span className="font-display text-lg font-semibold">Ganesh Chaturthi</span>
           </header>
 
           <main className="flex-1 px-4 py-6 sm:px-6 lg:px-10 lg:py-8">

@@ -27,10 +27,10 @@ export default function Dashboard() {
     <div>
       <PageHeader
         title="Dashboard"
-        subtitle="Sri Venkateshwara Utsav 2025 — overview of members, donations & schedule"
+        subtitle="Ganesh Chaturthi 2026 — overview of members, donations & schedule"
         action={
           <span className="rounded-full border border-sand bg-white px-3 py-1 text-xs font-medium text-ink-muted">
-            Sri Venkateshwara Utsav 2025
+            Ganesh Chaturthi 2026
           </span>
         }
       />
