@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react'
-import { Plus, Search, Trash2 } from 'lucide-react'
+import { Pencil, Plus, Search, Trash2 } from 'lucide-react'
 import {
   useMembers,
   useCreateMember,
   useUpdateMember,
   useDeleteMember,
 } from '../api/hooks'
+import { useAuth } from '../auth/AuthContext'
 import {
   Avatar,
   ErrorState,
@@ -27,6 +28,7 @@ const emptyForm = {
 }
 
 export default function Members() {
+  const { isAdmin } = useAuth()
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('All')
   const [modalOpen, setModalOpen] = useState(false)
@@ -48,6 +50,7 @@ export default function Members() {
   const deleteMember = useDeleteMember()
 
   function openCreate() {
+    if (!isAdmin) return
     setEditing(null)
     setForm(emptyForm)
     setError('')
@@ -55,10 +58,11 @@ export default function Members() {
   }
 
   function openEdit(m) {
+    if (!isAdmin) return
     setEditing(m)
     setForm({
       name: m.name,
-      phone_number: m.phone_number,
+      phone_number: m.phone_number || '',
       total_amount: String(m.total_amount),
       paid: String(m.paid),
       role: m.role || 'Member',
@@ -69,10 +73,12 @@ export default function Members() {
 
   async function handleSubmit(e) {
     e.preventDefault()
+    if (!isAdmin) return
     setError('')
+    const phone = form.phone_number.trim()
     const payload = {
       name: form.name.trim(),
-      phone_number: form.phone_number.trim(),
+      phone_number: phone || null,
       total_amount: Number(form.total_amount) || 0,
       paid: Number(form.paid) || 0,
       role: form.role.trim() || 'Member',
@@ -90,6 +96,7 @@ export default function Members() {
   }
 
   async function handleDelete(id) {
+    if (!isAdmin) return
     if (!window.confirm('Delete this member?')) return
     await deleteMember.mutateAsync(id)
   }
@@ -98,7 +105,11 @@ export default function Members() {
     <div>
       <PageHeader
         title="Members"
-        subtitle="Track pledges, payments, and outstanding balances"
+        subtitle={
+          isAdmin
+            ? 'Track pledges, payments, and outstanding balances'
+            : 'View pledges, payments, and outstanding balances'
+        }
       />
 
       <div className="mb-4 flex items-end justify-between gap-4">
@@ -134,13 +145,15 @@ export default function Members() {
             </option>
           ))}
         </select>
-        <button
-          type="button"
-          onClick={openCreate}
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white hover:bg-accent-hover"
-        >
-          <Plus size={16} /> Add Member
-        </button>
+        {isAdmin && (
+          <button
+            type="button"
+            onClick={openCreate}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white hover:bg-accent-hover"
+          >
+            <Plus size={16} /> Add Member
+          </button>
+        )}
       </div>
 
       {queryError && <ErrorState message={queryError.message} />}
@@ -158,14 +171,16 @@ export default function Members() {
                   <th className="px-5 py-3 font-semibold">Paid</th>
                   <th className="px-5 py-3 font-semibold">Balance</th>
                   <th className="px-5 py-3 font-semibold">Status</th>
-                  <th className="px-5 py-3 font-semibold" />
+                  {isAdmin && <th className="px-5 py-3 font-semibold" />}
                 </tr>
               </thead>
               <tbody className="divide-y divide-sand">
                 {members.map((m) => (
                   <tr
                     key={m.id}
-                    className="cursor-pointer transition-colors hover:bg-cream/60"
+                    className={`transition-colors hover:bg-cream/60 ${
+                      isAdmin ? 'cursor-pointer' : ''
+                    }`}
                     onClick={() => openEdit(m)}
                   >
                     <td className="px-5 py-4">
@@ -174,7 +189,9 @@ export default function Members() {
                         <span className="font-medium text-ink">{m.name}</span>
                       </div>
                     </td>
-                    <td className="px-5 py-4 text-ink-muted">{m.phone_number}</td>
+                    <td className="px-5 py-4 text-ink-muted">
+                      {m.phone_number || '—'}
+                    </td>
                     <td className="px-5 py-4 font-medium">
                       {formatINR(m.total_amount)}
                     </td>
@@ -183,28 +200,44 @@ export default function Members() {
                     <td className="px-5 py-4">
                       <StatusBadge status={m.status} />
                     </td>
-                    <td className="px-5 py-4">
-                      <button
-                        type="button"
-                        className="rounded-lg p-1.5 text-ink-muted hover:bg-red-50 hover:text-red-600"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleDelete(m.id)
-                        }}
-                        aria-label="Delete member"
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    </td>
+                    {isAdmin && (
+                      <td className="px-5 py-4">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            type="button"
+                            className="rounded-lg p-1.5 text-ink-muted hover:bg-cream-dark hover:text-ink"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              openEdit(m)
+                            }}
+                            aria-label="Edit member"
+                          >
+                            <Pencil size={15} />
+                          </button>
+                          <button
+                            type="button"
+                            className="rounded-lg p-1.5 text-ink-muted hover:bg-red-50 hover:text-red-600"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleDelete(m.id)
+                            }}
+                            aria-label="Delete member"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
                 {members.length === 0 && (
                   <tr>
                     <td
-                      colSpan={7}
+                      colSpan={isAdmin ? 7 : 6}
                       className="px-5 py-12 text-center text-ink-muted"
                     >
-                      No members yet — add your first member
+                      No members yet
+                      {isAdmin ? ' — add your first member' : ''}
                     </td>
                   </tr>
                 )}
@@ -214,75 +247,76 @@ export default function Members() {
         </div>
       )}
 
-      <Modal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        title={editing ? 'Edit Member' : 'Add Member'}
-      >
-        <form onSubmit={handleSubmit} className="space-y-3">
-          {error && <ErrorState message={error} />}
-          <Field label="Name">
-            <input
-              required
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              className="field"
-            />
-          </Field>
-          <Field label="Phone Number">
-            <input
-              required
-              value={form.phone_number}
-              onChange={(e) =>
-                setForm({ ...form, phone_number: e.target.value })
-              }
-              className="field"
-            />
-          </Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Total Amount">
+      {isAdmin && (
+        <Modal
+          open={modalOpen}
+          onClose={() => setModalOpen(false)}
+          title={editing ? 'Edit Member' : 'Add Member'}
+        >
+          <form onSubmit={handleSubmit} className="space-y-3">
+            {error && <ErrorState message={error} />}
+            <Field label="Name">
               <input
-                type="number"
-                min="0"
-                step="1"
-                value={form.total_amount}
+                required
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                className="field"
+              />
+            </Field>
+            <Field label="Phone Number (optional)">
+              <input
+                value={form.phone_number}
                 onChange={(e) =>
-                  setForm({ ...form, total_amount: e.target.value })
+                  setForm({ ...form, phone_number: e.target.value })
                 }
                 className="field"
               />
             </Field>
-            <Field label="Paid">
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Total Amount">
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={form.total_amount}
+                  onChange={(e) =>
+                    setForm({ ...form, total_amount: e.target.value })
+                  }
+                  className="field"
+                />
+              </Field>
+              <Field label="Paid">
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={form.paid}
+                  onChange={(e) => setForm({ ...form, paid: e.target.value })}
+                  className="field"
+                />
+              </Field>
+            </div>
+            <Field label="Role">
               <input
-                type="number"
-                min="0"
-                step="1"
-                value={form.paid}
-                onChange={(e) => setForm({ ...form, paid: e.target.value })}
+                value={form.role}
+                onChange={(e) => setForm({ ...form, role: e.target.value })}
                 className="field"
               />
             </Field>
-          </div>
-          <Field label="Role">
-            <input
-              value={form.role}
-              onChange={(e) => setForm({ ...form, role: e.target.value })}
-              className="field"
-            />
-          </Field>
-          <p className="text-xs text-ink-muted">
-            Status is <strong>Paid</strong> when paid ≥ total amount; otherwise{' '}
-            <strong>Pending</strong>.
-          </p>
-          <button
-            type="submit"
-            disabled={createMember.isPending || updateMember.isPending}
-            className="mt-2 w-full rounded-xl bg-accent py-2.5 text-sm font-semibold text-white hover:bg-accent-hover disabled:opacity-60"
-          >
-            {editing ? 'Save Changes' : 'Add Member'}
-          </button>
-        </form>
-      </Modal>
+            <p className="text-xs text-ink-muted">
+              Status is <strong>Paid</strong> when paid ≥ total amount; otherwise{' '}
+              <strong>Pending</strong>.
+            </p>
+            <button
+              type="submit"
+              disabled={createMember.isPending || updateMember.isPending}
+              className="mt-2 w-full rounded-xl bg-accent py-2.5 text-sm font-semibold text-white hover:bg-accent-hover disabled:opacity-60"
+            >
+              {editing ? 'Save Changes' : 'Add Member'}
+            </button>
+          </form>
+        </Modal>
+      )}
 
       <style>{`
         .field {

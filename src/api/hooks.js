@@ -58,7 +58,17 @@ export function useCreateContribution() {
     mutationFn: api.createContribution,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['contributions'] })
-      qc.invalidateQueries({ queryKey: ['members'] })
+      qc.invalidateQueries({ queryKey: ['stats'] })
+    },
+  })
+}
+
+export function useUpdateContribution() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }) => api.updateContribution(id, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['contributions'] })
       qc.invalidateQueries({ queryKey: ['stats'] })
     },
   })

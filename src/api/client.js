@@ -80,6 +80,11 @@ export const api = {
   },
   createContribution: (data) =>
     request('/contributions', { method: 'POST', body: JSON.stringify(data) }),
+  updateContribution: (id, data) =>
+    request(`/contributions/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
   deleteContribution: (id) =>
     request(`/contributions/${id}`, { method: 'DELETE' }),
 

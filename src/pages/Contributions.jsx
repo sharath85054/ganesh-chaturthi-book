@@ -1,10 +1,12 @@
 import { useMemo, useState } from 'react'
-import { Plus, Trash2 } from 'lucide-react'
+import { Pencil, Plus, Trash2 } from 'lucide-react'
 import {
   useContributions,
   useCreateContribution,
+  useUpdateContribution,
   useDeleteContribution,
 } from '../api/hooks'
+import { useAuth } from '../auth/AuthContext'
 import {
   Avatar,
   ErrorState,
@@ -12,7 +14,7 @@ import {
   Modal,
   PageHeader,
 } from '../components/ui'
-import { formatDate, formatINR } from '../utils/format'
+import { formatDate } from '../utils/format'
 
 const TYPES = ['All', 'Donation', 'Annadham', 'Sponsorship', 'Other']
 
@@ -23,15 +25,18 @@ const typeStyles = {
   Other: 'bg-stone-100 text-stone-700',
 }
 
+const emptyForm = {
+  member_name: '',
+  type: 'Donation',
+  notes: '',
+}
+
 export default function Contributions() {
+  const { isAdmin } = useAuth()
   const [type, setType] = useState('All')
   const [modalOpen, setModalOpen] = useState(false)
-  const [form, setForm] = useState({
-    member_name: '',
-    amount: '',
-    type: 'Donation',
-    notes: '',
-  })
+  const [editing, setEditing] = useState(null)
+  const [form, setForm] = useState(emptyForm)
   const [error, setError] = useState('')
 
   const params = useMemo(
@@ -42,31 +47,57 @@ export default function Contributions() {
   const { data: contributions = [], isLoading, error: queryError } =
     useContributions(params)
   const createContribution = useCreateContribution()
+  const updateContribution = useUpdateContribution()
   const deleteContribution = useDeleteContribution()
+
+  function openCreate() {
+    if (!isAdmin) return
+    setEditing(null)
+    setForm(emptyForm)
+    setError('')
+    setModalOpen(true)
+  }
+
+  function openEdit(c) {
+    if (!isAdmin) return
+    setEditing(c)
+    setForm({
+      member_name: c.member_name || '',
+      type: c.type || 'Donation',
+      notes: c.notes || '',
+    })
+    setError('')
+    setModalOpen(true)
+  }
 
   async function handleSubmit(e) {
     e.preventDefault()
+    if (!isAdmin) return
     setError('')
+    const payload = {
+      member_name: form.member_name.trim(),
+      type: form.type,
+      notes: form.notes,
+    }
     try {
-      await createContribution.mutateAsync({
-        member_name: form.member_name.trim(),
-        amount: Number(form.amount),
-        type: form.type,
-        notes: form.notes,
-      })
+      if (editing) {
+        await updateContribution.mutateAsync({ id: editing.id, data: payload })
+      } else {
+        await createContribution.mutateAsync(payload)
+      }
       setModalOpen(false)
-      setForm({ member_name: '', amount: '', type: 'Donation', notes: '' })
+      setEditing(null)
+      setForm(emptyForm)
     } catch (err) {
       setError(err.message)
     }
   }
 
   async function handleDelete(id) {
+    if (!isAdmin) return
     if (!window.confirm('Delete this contribution?')) return
     await deleteContribution.mutateAsync(id)
   }
-
-  const total = contributions.reduce((sum, c) => sum + c.amount, 0)
 
   return (
     <div>
@@ -74,16 +105,15 @@ export default function Contributions() {
         title="Contributions"
         subtitle="Donations, Annadham sponsorships, and other receipts"
         action={
-          <button
-            type="button"
-            onClick={() => {
-              setError('')
-              setModalOpen(true)
-            }}
-            className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white hover:bg-accent-hover"
-          >
-            <Plus size={16} /> Record Contribution
-          </button>
+          isAdmin ? (
+            <button
+              type="button"
+              onClick={openCreate}
+              className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white hover:bg-accent-hover"
+            >
+              <Plus size={16} /> Record Contribution
+            </button>
+          ) : null
         }
       />
 
@@ -105,8 +135,8 @@ export default function Contributions() {
           ))}
         </div>
         <p className="text-sm text-ink-muted">
-          <span className="font-semibold text-ink">{formatINR(total)}</span>{' '}
-          across {contributions.length} records
+          <span className="font-semibold text-ink">{contributions.length}</span>{' '}
+          {contributions.length === 1 ? 'record' : 'records'}
         </p>
       </div>
 
@@ -116,20 +146,23 @@ export default function Contributions() {
       ) : (
         <div className="overflow-hidden rounded-2xl border border-sand bg-white shadow-sm">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[700px] text-left text-sm">
+            <table className="w-full min-w-[640px] text-left text-sm">
               <thead>
                 <tr className="bg-[#f0eadd] text-[11px] font-semibold uppercase tracking-wider text-ink-muted">
-                  <th className="px-5 py-3">Member</th>
+                  <th className="px-5 py-3">Name</th>
                   <th className="px-5 py-3">Type</th>
-                  <th className="px-5 py-3">Amount</th>
                   <th className="px-5 py-3">Date</th>
                   <th className="px-5 py-3">Notes</th>
-                  <th className="px-5 py-3" />
+                  {isAdmin && <th className="px-5 py-3" />}
                 </tr>
               </thead>
               <tbody className="divide-y divide-sand">
                 {contributions.map((c) => (
-                  <tr key={c.id} className="hover:bg-cream/60">
+                  <tr
+                    key={c.id}
+                    className={`hover:bg-cream/60 ${isAdmin ? 'cursor-pointer' : ''}`}
+                    onClick={() => openEdit(c)}
+                  >
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
                         <Avatar name={c.member_name || 'U'} />
@@ -147,31 +180,46 @@ export default function Contributions() {
                         {c.type}
                       </span>
                     </td>
-                    <td className="px-5 py-4 font-semibold">
-                      {formatINR(c.amount)}
-                    </td>
                     <td className="px-5 py-4 text-ink-muted">
                       {formatDate(c.date)}
                     </td>
                     <td className="max-w-xs truncate px-5 py-4 text-ink-muted">
                       {c.notes || '—'}
                     </td>
-                    <td className="px-5 py-4">
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(c.id)}
-                        className="rounded-lg p-1.5 text-ink-muted hover:bg-red-50 hover:text-red-600"
-                        aria-label="Delete"
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    </td>
+                    {isAdmin && (
+                      <td className="px-5 py-4">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              openEdit(c)
+                            }}
+                            className="rounded-lg p-1.5 text-ink-muted hover:bg-cream-dark hover:text-ink"
+                            aria-label="Edit"
+                          >
+                            <Pencil size={15} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleDelete(c.id)
+                            }}
+                            className="rounded-lg p-1.5 text-ink-muted hover:bg-red-50 hover:text-red-600"
+                            aria-label="Delete"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
                 {contributions.length === 0 && (
                   <tr>
                     <td
-                      colSpan={6}
+                      colSpan={isAdmin ? 5 : 4}
                       className="px-5 py-12 text-center text-ink-muted"
                     >
                       No contributions yet
@@ -184,40 +232,26 @@ export default function Contributions() {
         </div>
       )}
 
-      <Modal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        title="Record Contribution"
-      >
-        <form onSubmit={handleSubmit} className="space-y-3">
-          {error && <ErrorState message={error} />}
-          <label className="block">
-            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-ink-muted">
-              Member
-            </span>
-            <input
-              required
-              type="text"
-              placeholder="Enter member name"
-              value={form.member_name}
-              onChange={(e) =>
-                setForm({ ...form, member_name: e.target.value })
-              }
-              className="w-full rounded-xl border border-sand bg-white px-3 py-2.5 text-sm outline-none focus:border-accent"
-            />
-          </label>
-          <div className="grid grid-cols-2 gap-3">
+      {isAdmin && (
+        <Modal
+          open={modalOpen}
+          onClose={() => setModalOpen(false)}
+          title={editing ? 'Edit Contribution' : 'Record Contribution'}
+        >
+          <form onSubmit={handleSubmit} className="space-y-3">
+            {error && <ErrorState message={error} />}
             <label className="block">
               <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-ink-muted">
-                Amount
+                Name
               </span>
               <input
                 required
-                type="number"
-                min="1"
-                step="1"
-                value={form.amount}
-                onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                type="text"
+                placeholder="Enter name"
+                value={form.member_name}
+                onChange={(e) =>
+                  setForm({ ...form, member_name: e.target.value })
+                }
                 className="w-full rounded-xl border border-sand bg-white px-3 py-2.5 text-sm outline-none focus:border-accent"
               />
             </label>
@@ -237,31 +271,29 @@ export default function Contributions() {
                 ))}
               </select>
             </label>
-          </div>
-          <label className="block">
-            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-ink-muted">
-              Notes
-            </span>
-            <textarea
-              rows={3}
-              value={form.notes}
-              onChange={(e) => setForm({ ...form, notes: e.target.value })}
-              className="w-full rounded-xl border border-sand bg-white px-3 py-2.5 text-sm outline-none focus:border-accent"
-            />
-          </label>
-          <p className="text-xs text-ink-muted">
-            Type a member name — existing members are matched automatically, or
-            a new member is created. Their paid amount is updated too.
-          </p>
-          <button
-            type="submit"
-            disabled={createContribution.isPending}
-            className="w-full rounded-xl bg-accent py-2.5 text-sm font-semibold text-white hover:bg-accent-hover disabled:opacity-60"
-          >
-            Save Contribution
-          </button>
-        </form>
-      </Modal>
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-ink-muted">
+                Notes
+              </span>
+              <textarea
+                rows={3}
+                value={form.notes}
+                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                className="w-full rounded-xl border border-sand bg-white px-3 py-2.5 text-sm outline-none focus:border-accent"
+              />
+            </label>
+            <button
+              type="submit"
+              disabled={
+                createContribution.isPending || updateContribution.isPending
+              }
+              className="w-full rounded-xl bg-accent py-2.5 text-sm font-semibold text-white hover:bg-accent-hover disabled:opacity-60"
+            >
+              {editing ? 'Save Changes' : 'Save Contribution'}
+            </button>
+          </form>
+        </Modal>
+      )}
     </div>
   )
 }

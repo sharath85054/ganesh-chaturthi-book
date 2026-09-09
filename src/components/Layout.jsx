@@ -87,7 +87,9 @@ export default function Layout() {
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium">{user?.name}</p>
-                <p className="truncate text-xs text-ink-muted">{user?.email}</p>
+                <p className="truncate text-xs text-ink-muted">
+                  {user?.role === 'admin' ? 'Admin' : 'View only'} · {user?.email}
+                </p>
               </div>
               <button
                 type="button"

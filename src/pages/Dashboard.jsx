@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { ArrowRight, CalendarDays, HandCoins, Users } from 'lucide-react'
 import { useStats, useMembers, useEvents } from '../api/hooks'
+import { useAuth } from '../auth/AuthContext'
 import {
   StatCard,
   PageHeader,
@@ -13,6 +14,7 @@ import {
 import { formatINR } from '../utils/format'
 
 export default function Dashboard() {
+  const { isAdmin } = useAuth()
   const { data: stats, isLoading, error } = useStats()
   const { data: members = [] } = useMembers({})
   const { data: events = [] } = useEvents({})
@@ -95,7 +97,7 @@ export default function Dashboard() {
                   <Avatar name={m.name} />
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium">{m.name}</p>
-                    <p className="text-xs text-ink-muted">{m.phone_number}</p>
+                    <p className="text-xs text-ink-muted">{m.phone_number || '—'}</p>
                   </div>
                 </div>
                 <div className="text-right">
@@ -157,13 +159,14 @@ export default function Dashboard() {
           to="/contributions"
           className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white hover:bg-accent-hover"
         >
-          <HandCoins size={16} /> Record Contribution
+          <HandCoins size={16} />{' '}
+          {isAdmin ? 'Record Contribution' : 'View Contributions'}
         </Link>
         <Link
           to="/members"
           className="inline-flex items-center gap-2 rounded-xl border border-sand bg-white px-4 py-2.5 text-sm font-semibold text-ink hover:bg-cream-dark"
         >
-          <Users size={16} /> Manage Members
+          <Users size={16} /> {isAdmin ? 'Manage Members' : 'View Members'}
         </Link>
       </div>
     </div>

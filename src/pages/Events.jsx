@@ -11,6 +11,7 @@ import {
   useUpdateEvent,
   useUpdateFestivalDay,
 } from '../api/hooks'
+import { useAuth } from '../auth/AuthContext'
 import {
   CategoryBadge,
   ErrorState,
@@ -41,6 +42,7 @@ const emptyDayForm = {
 }
 
 export default function Events() {
+  const { isAdmin } = useAuth()
   const [day, setDay] = useState(null)
   const [category, setCategory] = useState('All')
   const [modalOpen, setModalOpen] = useState(false)
@@ -96,6 +98,7 @@ export default function Events() {
   }
 
   function openCreate() {
+    if (!isAdmin) return
     if (festivalDays.length === 0) {
       setDaysModalOpen(true)
       setDayForm({ day: String(nextDayNumber), date_label: '' })
@@ -111,6 +114,7 @@ export default function Events() {
   }
 
   function openEdit(event) {
+    if (!isAdmin) return
     const fd = getFestivalDayForEvent(event)
     setEditing(event)
     setForm({
@@ -127,6 +131,7 @@ export default function Events() {
   }
 
   function openDaysModal() {
+    if (!isAdmin) return
     setEditingDay(null)
     setDayForm({ day: String(nextDayNumber), date_label: '' })
     setDayError('')
@@ -134,6 +139,7 @@ export default function Events() {
   }
 
   function openEditDay(fd) {
+    if (!isAdmin) return
     setEditingDay(fd)
     setDayForm({ day: String(fd.day), date_label: fd.date_label })
     setDayError('')
@@ -142,6 +148,7 @@ export default function Events() {
 
   async function handleSubmit(e) {
     e.preventDefault()
+    if (!isAdmin) return
     setError('')
     const selected = getFestivalDayById(form.festivalDayId)
     if (!selected) {
@@ -172,6 +179,7 @@ export default function Events() {
 
   async function handleDaySubmit(e) {
     e.preventDefault()
+    if (!isAdmin) return
     setDayError('')
     const payload = {
       day: Number(dayForm.day),
@@ -190,11 +198,13 @@ export default function Events() {
   }
 
   async function handleDelete(id) {
+    if (!isAdmin) return
     if (!window.confirm('Delete this event?')) return
     await deleteEvent.mutateAsync(id)
   }
 
   async function handleDeleteDay(id) {
+    if (!isAdmin) return
     if (!window.confirm('Delete this schedule day section?')) return
     await deleteFestivalDay.mutateAsync(id)
   }
@@ -205,22 +215,24 @@ export default function Events() {
         title="04 Events & Schedule"
         subtitle="Rituals, Annadham sittings, homa, and cultural programmes"
         action={
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={openDaysModal}
-              className="inline-flex items-center gap-2 rounded-xl border border-sand bg-white px-4 py-2.5 text-sm font-semibold text-ink hover:bg-cream-dark"
-            >
-              <Calendar size={16} /> Manage Days
-            </button>
-            <button
-              type="button"
-              onClick={openCreate}
-              className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white hover:bg-accent-hover"
-            >
-              <Plus size={16} /> Add Event
-            </button>
-          </div>
+          isAdmin ? (
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={openDaysModal}
+                className="inline-flex items-center gap-2 rounded-xl border border-sand bg-white px-4 py-2.5 text-sm font-semibold text-ink hover:bg-cream-dark"
+              >
+                <Calendar size={16} /> Manage Days
+              </button>
+              <button
+                type="button"
+                onClick={openCreate}
+                className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white hover:bg-accent-hover"
+              >
+                <Plus size={16} /> Add Event
+              </button>
+            </div>
+          ) : null
         }
       />
 
@@ -271,7 +283,7 @@ export default function Events() {
             {d.label}
           </button>
         ))}
-        {festivalDays.length === 0 && !daysLoading && (
+        {festivalDays.length === 0 && !daysLoading && isAdmin && (
           <button
             type="button"
             onClick={openDaysModal}
@@ -313,23 +325,24 @@ export default function Events() {
       ) : grouped.length === 0 ? (
         <div className="py-12 text-center">
           <p className="text-sm text-ink-muted">No events found</p>
-          {festivalDays.length === 0 ? (
-            <button
-              type="button"
-              onClick={openDaysModal}
-              className="mt-4 inline-flex items-center gap-2 rounded-xl border border-sand bg-white px-4 py-2.5 text-sm font-semibold text-ink hover:bg-cream-dark"
-            >
-              <Calendar size={16} /> Set up schedule days first
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={openCreate}
-              className="mt-4 inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white hover:bg-accent-hover"
-            >
-              <Plus size={16} /> Add your first event
-            </button>
-          )}
+          {isAdmin &&
+            (festivalDays.length === 0 ? (
+              <button
+                type="button"
+                onClick={openDaysModal}
+                className="mt-4 inline-flex items-center gap-2 rounded-xl border border-sand bg-white px-4 py-2.5 text-sm font-semibold text-ink hover:bg-cream-dark"
+              >
+                <Calendar size={16} /> Set up schedule days first
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={openCreate}
+                className="mt-4 inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white hover:bg-accent-hover"
+              >
+                <Plus size={16} /> Add your first event
+              </button>
+            ))}
         </div>
       ) : (
         <div className="space-y-10">
@@ -365,36 +378,42 @@ export default function Events() {
                     </div>
 
                     <div
-                      className="group min-w-0 flex-1 cursor-pointer rounded-2xl border border-sand bg-white p-4 shadow-sm transition-colors hover:border-accent/40 sm:p-5"
+                      className={`group min-w-0 flex-1 rounded-2xl border border-sand bg-white p-4 shadow-sm transition-colors sm:p-5 ${
+                        isAdmin
+                          ? 'cursor-pointer hover:border-accent/40'
+                          : ''
+                      }`}
                       onClick={() => openEdit(event)}
                     >
                       <div className="mb-2 flex flex-wrap items-center gap-2">
                         <CategoryBadge category={event.category} />
                         <EventStatusBadge status={event.status} />
-                        <div className="ml-auto flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              openEdit(event)
-                            }}
-                            className="rounded-lg p-1.5 text-ink-muted hover:bg-cream-dark hover:text-ink"
-                            aria-label="Edit event"
-                          >
-                            <Pencil size={14} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleDelete(event.id)
-                            }}
-                            className="rounded-lg p-1.5 text-ink-muted hover:bg-red-50 hover:text-red-600"
-                            aria-label="Delete event"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
+                        {isAdmin && (
+                          <div className="ml-auto flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                openEdit(event)
+                              }}
+                              className="rounded-lg p-1.5 text-ink-muted hover:bg-cream-dark hover:text-ink"
+                              aria-label="Edit event"
+                            >
+                              <Pencil size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleDelete(event.id)
+                              }}
+                              className="rounded-lg p-1.5 text-ink-muted hover:bg-red-50 hover:text-red-600"
+                              aria-label="Delete event"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        )}
                       </div>
                       <h3 className="font-display text-lg font-semibold text-ink sm:text-xl">
                         {event.title}
@@ -421,6 +440,7 @@ export default function Events() {
       )}
 
       {/* Event modal */}
+      {isAdmin && (
       <Modal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
@@ -525,8 +545,10 @@ export default function Events() {
           </button>
         </form>
       </Modal>
+      )}
 
       {/* Manage schedule days modal */}
+      {isAdmin && (
       <Modal
         open={daysModalOpen}
         onClose={() => setDaysModalOpen(false)}
@@ -606,6 +628,7 @@ export default function Events() {
           </button>
         </form>
       </Modal>
+      )}
 
       <style>{`
         .field {
